@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#101418">
+  <title>WebAR 1:1 — model-viewer</title>
+
+  <!-- model-viewer 4.3.1 (versao pinada: nao use @latest em teste de campo) -->
+  <script type="module"
+          src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.3.1/model-viewer.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #101418;
+      --fg: #e8eaed;
+      --muted: #9aa0a6;
+      --accent: #4285f4;
+      --ok: #34a853;
+      --warn: #fbbc04;
+      --err: #ea4335;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: var(--bg);
+      color: var(--fg);
+      font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      overscroll-behavior: none;
+    }
+
+    model-viewer {
+      display: block;
+      width: 100%;
+      height: 100dvh;
+      background: radial-gradient(circle at 50% 35%, #26303a 0%, #101418 70%);
+      --poster-color: transparent;
+    }
+
+    /* ---------- Botao de AR (slot="ar-button") ---------- */
+    #ar-button {
+      position: absolute;
+      bottom: calc(24px + env(safe-area-inset-bottom));
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 24px;
+      border: none;
+      border-radius: 999px;
+      background: var(--accent);
+      color: #fff;
+      font: 600 15px/1 system-ui, sans-serif;
+      white-space: nowrap;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, .45);
+      cursor: pointer;
+    }
+    #ar-button:active { transform: translateX(-50%) scale(.97); }
+    /* model-viewer esconde o slot automaticamente quando AR nao esta disponivel */
+
+    /* ---------- Prompt de escaneamento (slot="ar-prompt") ---------- */
+    #ar-prompt {
+      position: absolute;
+      left: 50%;
+      bottom: calc(96px + env(safe-area-inset-bottom));
+      transform: translateX(-50%);
+      max-width: 80vw;
+      padding: 10px 16px;
+      border-radius: 12px;
+      background: rgba(0, 0, 0, .72);
+      text-align: center;
+      font-size: 13px;
+    }
+
+    /* ---------- Painel de diagnostico ---------- */
+    #diag {
+      position: fixed;
+      top: calc(12px + env(safe-area-inset-top));
+      left: 12px;
+      right: 12px;
+      max-width: 420px;
+      padding: 10px 12px;
+      border: 1px solid rgba(255, 255, 255, .12);
+      border-radius: 10px;
+      background: rgba(16, 20, 24, .88);
+      backdrop-filter: blur(6px);
+      font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+      z-index: 10;
+    }
+    #diag summary {
+      cursor: pointer;
+      list-style: none;
+      font-weight: 600;
+      font-family: system-ui, sans-serif;
+      color: var(--muted);
+    }
+    #diag summary::-webkit-details-marker { display: none; }
+    #diag summary::before { content: "\25B8 "; }
+    #diag[open] summary::before { content: "\25BE "; }
+    #diag dl {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 2px 10px;
+      margin: 10px 0 0;
+    }
+    #diag dt { color: var(--muted); }
+    #diag dd { margin: 0; word-break: break-all; }
+    .ok   { color: var(--ok); }
+    .warn { color: var(--warn); }
+    .err  { color: var(--err); }
+  </style>
+</head>
+<body>
+
+  <model-viewer
+    id="viewer"
+    alt="Modelo 3D em escala real"
+    ar
+    ar-modes="webxr scene-viewer quick-look"
+    ar-scale="fixed"
+    ar-placement="floor"
+    xr-environment
+    camera-controls
+    touch-action="pan-y"
+    shadow-intensity="1"
+    environment-image="neutral"
+    loading="eager">
+
+    <button id="ar-button" slot="ar-button">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 2 3 7v10l9 5 9-5V7z"></path>
+        <path d="M3 7l9 5 9-5M12 12v10"></path>
+      </svg>
+      Ver no meu espaço
+    </button>
+
+    <div id="ar-prompt" slot="ar-prompt">
+      Aponte a câmera para o chão e mova o celular devagar para o app encontrar a superfície.
+    </div>
+  </model-viewer>
+
+  <details id="diag">
+    <summary>Diagnóstico</summary>
+    <dl>
+      <dt>modelo</dt>      <dd id="d-modelo">—</dd>
+      <dt>origem</dt>      <dd id="d-origem">—</dd>
+      <dt>glb</dt>         <dd id="d-glb">—</dd>
+      <dt>usdz</dt>        <dd id="d-usdz">—</dd>
+      <dt>protocolo</dt>   <dd id="d-proto">—</dd>
+      <dt>webxr</dt>       <dd id="d-webxr">verificando…</dd>
+      <dt>botão ar</dt>    <dd id="d-canar">—</dd>
+      <dt>escala</dt>      <dd id="d-escala">—</dd>
+      <dt>status ar</dt>   <dd id="d-arstatus">not-presenting</dd>
+      <dt>tracking</dt>    <dd id="d-tracking">—</dd>
+      <dt>carregamento</dt><dd id="d-load">carregando…</dd>
+    </dl>
+  </details>
+
+  <script>
+    'use strict';
+
+    // Modelos publicos oficiais do Google — garantem que o projeto funcione
+    // no primeiro teste, sem nenhum arquivo local em ./assets/.
+    const FALLBACK = {
+      nome: 'Astronaut (CDN)',
+      glb:  'https://modelviewer.dev/shared-assets/models/Astronaut.glb',
+      usdz: 'https://modelviewer.dev/shared-assets/models/Astronaut.usdz'
+    };
+
+    // Só nomes simples: bloqueia path traversal (../) e injeção via query string.
+    const NOME_VALIDO = /^[A-Za-z0-9_-]{1,64}$/;
+
+    const viewer = document.getElementById('viewer');
+    const set = (id, texto, classe) => {
+      const el = document.getElementById(id);
+      el.textContent = texto;
+      el.className = classe || '';
+    };
+
+    // ---------- Lógica dinâmica: ?modelo=nome -> ./assets/nome.glb + .usdz ----------
+    const modelo = new URLSearchParams(location.search).get('modelo');
+    let glb, usdz, nome, origem;
+
+    if (modelo && NOME_VALIDO.test(modelo)) {
+      nome   = modelo;
+      glb    = './assets/' + modelo + '.glb';
+      usdz   = './assets/' + modelo + '.usdz';
+      origem = 'local (./assets/)';
+    } else {
+      nome   = FALLBACK.nome;
+      glb    = FALLBACK.glb;
+      usdz   = FALLBACK.usdz;
+      origem = modelo
+        ? 'fallback — "?modelo" inválido, use apenas [A-Za-z0-9_-]'
+        : 'fallback — sem "?modelo" na URL';
+    }
+
+    viewer.src = glb;
+    viewer.setAttribute('ios-src', usdz);
+    viewer.alt = nome + ' em escala real';
+
+    set('d-modelo', nome);
+    set('d-origem', origem, modelo && !NOME_VALIDO.test(modelo) ? 'warn' : '');
+    set('d-glb', glb);
+    set('d-usdz', usdz);
+    set('d-escala', 'ar-scale=fixed (1:1, pinça desabilitada)', 'ok');
+
+    // ---------- Checagens de ambiente ----------
+    const seguro = location.protocol === 'https:' ||
+                   ['localhost', '127.0.0.1'].includes(location.hostname);
+    set('d-proto', location.protocol + (seguro ? ' (contexto seguro)' : ' — AR exige HTTPS!'),
+        seguro ? 'ok' : 'err');
+
+    if (navigator.xr && navigator.xr.isSessionSupported) {
+      navigator.xr.isSessionSupported('immersive-ar')
+        .then(ok => set('d-webxr', ok ? 'immersive-ar suportado' : 'immersive-ar indisponível',
+                                    ok ? 'ok' : 'warn'))
+        .catch(e => set('d-webxr', 'erro: ' + e.message, 'err'));
+    } else {
+      set('d-webxr', 'navigator.xr ausente (normal em desktop e iOS)', 'warn');
+    }
+
+    // ---------- Eventos do model-viewer ----------
+    viewer.addEventListener('load', () => {
+      set('d-load', 'modelo carregado', 'ok');
+      set('d-canar', viewer.canActivateAR ? 'disponível' : 'indisponível neste device',
+                     viewer.canActivateAR ? 'ok' : 'warn');
+    });
+
+    viewer.addEventListener('error', event => {
+      const detalhe = (event.detail && event.detail.type) || 'desconhecido';
+      set('d-load', 'FALHOU (' + detalhe + ') — confira se ' + glb + ' existe', 'err');
+      document.getElementById('diag').open = true;
+    });
+
+    // session-started | object-placed | failed | not-presenting
+    viewer.addEventListener('ar-status', event => {
+      const s = event.detail.status;
+      set('d-arstatus', s, s === 'failed' ? 'err' : s === 'object-placed' ? 'ok' : '');
+    });
+
+    // tracking | not-tracking  (feedback da detecção de superfície)
+    viewer.addEventListener('ar-tracking', event => {
+      const t = event.detail.status;
+      set('d-tracking', t, t === 'tracking' ? 'ok' : 'warn');
+    });
+  </script>
+</body>
+</html>

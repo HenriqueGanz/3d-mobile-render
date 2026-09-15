@@ -1,0 +1,15 @@
+{
+  "name": "3d-mobile-render",
+  "version": "1.0.0",
+  "description": "Visualizador WebAR em escala 1:1 com deteccao de superficie usando <model-viewer> do Google.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "vite",
+    "dev": "vite",
+    "preview": "vite preview --host"
+  },
+  "devDependencies": {
+    "vite": "^8.3.0"
+  }
+}
