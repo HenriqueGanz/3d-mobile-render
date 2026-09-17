@@ -13,7 +13,8 @@
     {
       "id": "gangorra_em_pe",
       "nome": "Gangorra em pé",
-      "origem": "local"
+      "origem": "local",
+      "usdz": true
     }
   ]
 }
