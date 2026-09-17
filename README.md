@@ -1,8 +1,15 @@
 # WebAR 1:1 — `<model-viewer>` + GitHub Codespaces
 
 Visualizador de Realidade Aumentada em **escala real (1:1)** com **detecção de
-superfície**, feito com o `<model-viewer>` do Google. Sem framework: HTML,
-JavaScript puro e um servidor de dev.
+superfície**, feito com o `<model-viewer>` do Google. Um **seletor de objetos** ao
+lado troca o modelo em exibição. Sem framework e sem dependência de runtime: HTML,
+CSS, JavaScript puro e um servidor de dev.
+
+> **Um objeto por vez.** O `<model-viewer>` tem um `src` singular e não expõe o grafo
+> de cena, então não é possível posicionar dois objetos na mesma sessão de AR. A troca
+> acontece **fora** da câmera: escolher no seletor → "Ver no meu espaço" → posicionar na
+> superfície → sair da AR → escolher outro. Multi-objeto exigiria trocar a camada de AR
+> por three.js + WebXR, o que eliminaria o suporte a iPhone (Safari iOS não tem WebXR).
 
 O fluxo de teste é: subir para o GitHub → abrir no Codespaces → rodar o servidor
 → **deixar a porta pública** → abrir a URL no celular.
@@ -14,7 +21,7 @@ O fluxo de teste é: subir para o GitHub → abrir no Codespaces → rodar o ser
 | Plataforma | Requisito | Modo de AR usado |
 |---|---|---|
 | Android | Chrome + *Google Play Services for AR* (ARCore) instalado | `webxr`, com fallback para `scene-viewer` |
-| iOS | iOS 12+ com Safari (ou Chrome iOS) | `quick-look` (precisa do `.usdz`) |
+| iOS | iOS 12+ com Safari (ou Chrome iOS) | `quick-look` (USDZ gerado na hora, não precisa de arquivo) |
 
 Em **desktop** o modelo aparece e gira, mas o botão de AR **não** é exibido —
 isso é o comportamento correto, não é bug. O painel de Diagnóstico no canto
@@ -137,9 +144,9 @@ Exemplo real: `https://fluffy-space-guacamole-97xq5v4-5173.app.github.dev`
 
 | O que testa | URL |
 |---|---|
-| Fallback do CDN (funciona sem nenhum arquivo local) | `https://<...>-5173.app.github.dev/` |
-| Modelo local `assets/cadeira.glb` + `.usdz` | `https://<...>-5173.app.github.dev/?modelo=cadeira` |
-| Modelo local `assets/sofa.glb` + `.usdz` | `https://<...>-5173.app.github.dev/?modelo=sofa` |
+| Catálogo com os 4 exemplos (funciona sem nenhum arquivo local) | `https://<...>-5173.app.github.dev/` |
+| Abrir já com um objeto selecionado | `https://<...>-5173.app.github.dev/?modelo=garrafa` |
+| Modelo local `assets/cadeira.glb` | `https://<...>-5173.app.github.dev/?modelo=cadeira` |
 
 Para não digitar essa URL no celular, gere um QR code dela — no terminal do
 Codespaces:
@@ -148,32 +155,38 @@ Codespaces:
 npx --yes qrcode-terminal "https://$CODESPACE_NAME-5173.app.github.dev/"
 ```
 
-No celular: abra o link → toque em **"Ver no meu espaço"** → aponte a câmera
-para o chão e **mova o aparelho devagar** até a superfície ser detectada → toque
-para posicionar o modelo.
+No celular: abra o link → escolha um objeto na faixa de baixo → toque em
+**"Ver no meu espaço"** → aponte a câmera para a mesa e **mova o aparelho devagar**
+até a superfície ser detectada → toque para posicionar o modelo.
 
 ---
 
-## Como funciona a lógica de modelo dinâmico
+## O catálogo de objetos
 
-O script no `index.html` lê a query string e injeta os caminhos:
+O seletor é alimentado por [`assets/catalogo.json`](assets/catalogo.json). Cada entrada
+vira um card:
 
+```json
+{ "id": "cadeira", "nome": "Cadeira Eames", "origem": "local", "alturaM": null }
 ```
-/?modelo=cadeira   →   src      = ./assets/cadeira.glb
-                       ios-src  = ./assets/cadeira.usdz
-```
 
-Sem `?modelo=` (ou com um nome inválido), ele carrega o **Astronauta oficial do
-Google** direto do CDN — por isso o projeto funciona no primeiro teste, antes de
-você subir qualquer asset.
+Isso carrega `./assets/cadeira.glb` e publica o link direto `/?modelo=cadeira`.
+Escolher um card também atualiza a URL, então qualquer estado do app é compartilhável.
 
-O nome aceita só `[A-Za-z0-9_-]`, o que bloqueia `../` e injeção via URL.
+No **celular** o catálogo é uma faixa deslizante na base da tela, que some durante a
+sessão de AR. A partir de **860px** de largura vira um painel lateral fixo à esquerda.
 
-Para adicionar seus modelos: jogue `nome.glb` e `nome.usdz` em `assets/` e
-chame `?modelo=nome`. Veja [`assets/README.md`](assets/README.md) para as regras
-de exportação.
+O projeto já vem com 4 objetos de exemplo carregados de CDNs públicos — abacate,
+garrafa d'água, câmera antiga e astronauta — para você testar antes de exportar
+qualquer coisa. Apague as entradas marcadas `"exemplo": true` quando tiver os seus.
 
----
+Regras completas dos campos, nomenclatura e exportação: [`assets/README.md`](assets/README.md).
+
+### O `.usdz` não é obrigatório
+
+O `<model-viewer>` **gera o USDZ na hora** para o AR Quick Look quando `ios-src` não é
+informado. Na prática: **exportar o `.glb` já faz o iPhone funcionar**. Forneça um
+`.usdz` seu apenas para modelos **animados**, que a geração automática não cobre.
 
 ## Sobre a escala 1:1
 
@@ -196,6 +209,20 @@ o pivô na base. Um modelo exportado em centímetros aparece 100× maior; um com
 escala não aplicada aparece com tamanho aleatório. Detalhes em
 [`assets/README.md`](assets/README.md).
 
+Para conferir sem adivinhar: o painel de **Diagnóstico** mostra a bounding box real
+medida em metros assim que o modelo carrega. Uma garrafa deve dar ~0,22 m de altura.
+
+> Detalhe de implementação: um objeto com `alturaM` é carregado **duas vezes** na
+> primeira seleção — a primeira para medir o tamanho nativo, a segunda já com a
+> escala aplicada. Isso existe porque alterar `scale` com um modelo carregado
+> dispara uma exceção interna do model-viewer (regressão a partir da 4.2.0). O
+> fator medido fica em cache, então as seleções seguintes carregam uma vez só.
+
+Modelos de terceiros que vêm em unidades arbitrárias podem ser corrigidos com
+`"alturaM"` no catálogo — é o que os exemplos usam. Mas isso vale dentro do
+`<model-viewer>` e no WebXR; o **Scene Viewer** do Android carrega o arquivo cru e
+ignora. Para os seus modelos, exporte em metros e deixe `alturaM: null`.
+
 Teste de sanidade: coloque o objeto ao lado de algo de tamanho conhecido (uma
 porta tem ~2,0 m; uma mesa, ~0,75 m de altura).
 
@@ -211,10 +238,13 @@ porta tem ~2,0 m; uma mesa, ~0,75 m de altura).
 | Página abre mas a câmera não liga | Contexto inseguro (`http://`) ou permissão de câmera negada. A linha `protocolo` do Diagnóstico fica vermelha nesse caso. |
 | `carregamento: FALHOU` | O `.glb` não existe em `assets/`. Confira o nome exato — maiúsculas importam no Linux. |
 | Android abre a AR mas sem modelo | O Scene Viewer não conseguiu baixar o `.glb` — quase sempre porta privada. |
-| iOS não abre o Quick Look | Falta o `.usdz` com o mesmo nome base do `.glb`. |
+| iOS não abre o Quick Look | O USDZ é gerado automaticamente, então isso costuma ser um `usdz` apontando para arquivo inexistente no `catalogo.json`. Remova o campo e deixe o model-viewer gerar. |
+| Catálogo vazio na tela | `assets/catalogo.json` não carregou ou está com JSON inválido. O painel de Diagnóstico mostra o erro exato. |
+| Um objeto sumiu do seletor | `id` fora de `[A-Za-z0-9_-]`. Entradas inválidas são descartadas e contabilizadas na linha `catálogo` do Diagnóstico. |
 | Modelo gigante ou minúsculo | Unidade de exportação errada. Exporte em metros com escala aplicada. |
 | URL parou de responder depois de um tempo | O Codespace hiberna após 30 min ociosos. Reabra e rode `npm run dev` de novo — **a visibilidade da porta volta para `Private`**, refaça o Passo 4. |
 | Console cheio de erro de WebSocket | HMR do Vite pelo proxy. Não afeta a AR; recarregue a página manualmente. |
+| Catálogo some depois de `npm run build` | O Vite não empacota o que é buscado em runtime. O `vite.config.js` já copia `assets/` para `dist/assets/` no build — se você mexer nessa config, mantenha a cópia. |
 
 ---
 
@@ -222,15 +252,18 @@ porta tem ~2,0 m; uma mesa, ~0,75 m de altura).
 
 ```
 .
-├── index.html                  # página única: model-viewer + lógica de query string + diagnóstico
+├── index.html                  # model-viewer + seletor de objetos + painel de diagnóstico
+├── styles.css                  # layout responsivo: faixa no celular, painel lateral no desktop
+├── app.js                      # catálogo, seleção, normalização de escala, sincronia com a URL
 ├── vite.config.js              # host, allowedHosts e HMR ajustados para o Codespaces
 ├── package.json                # npm run dev / npm start
 ├── .devcontainer/
 │   └── devcontainer.json       # Node 22, npm install automático, porta 5173 encaminhada
 └── assets/
-    ├── README.md               # regras de nomenclatura e exportação
-    ├── nome.glb                # seus modelos (Android)
-    └── nome.usdz               # seus modelos (iOS)
+    ├── catalogo.json           # manifesto do seletor de objetos
+    ├── README.md               # campos do catálogo e regras de exportação
+    ├── nome.glb                # seus modelos
+    └── nome.usdz               # opcional: só para modelos animados
 ```
 
 ## Referências

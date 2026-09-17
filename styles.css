@@ -1,0 +1,271 @@
+:root {
+  --bg: #101418;
+  --painel: #171c22;
+  --borda: #262d36;
+  --fg: #e8eaed;
+  --muted: #9aa0a6;
+  --accent: #4285f4;
+  --ok: #34a853;
+  --warn: #fbbc04;
+  --err: #ea4335;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  overscroll-behavior: none;
+}
+
+/* ============================== Layout ==============================
+   Celular em retrato: o 3D ocupa a tela e o catalogo vira uma faixa
+   deslizante na base. A partir de 860px vira painel lateral fixo.      */
+.app {
+  display: grid;
+  height: 100dvh;
+  grid-template-areas: "palco" "catalogo";
+  grid-template-rows: 1fr auto;
+  /* minmax(0,...) e os min-width abaixo impedem que a faixa de cards estique
+     o grid alem da tela em vez de rolar no proprio eixo X. */
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 860px) {
+  .app {
+    grid-template-areas: "catalogo palco";
+    grid-template-columns: 280px minmax(0, 1fr);
+    grid-template-rows: 1fr;
+  }
+}
+
+.palco    { grid-area: palco; position: relative; min-height: 0; min-width: 0; }
+.catalogo { grid-area: catalogo; min-height: 0; min-width: 0; }
+
+/* Durante a sessao de AR o model-viewer toma a tela inteira. */
+.app.em-ar .catalogo { display: none; }
+
+/* ============================== Palco 3D ============================== */
+model-viewer#viewer {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at 50% 35%, #26303a 0%, #101418 70%);
+  --poster-color: transparent;
+}
+
+#ar-button {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 24px;
+  border: none;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font: 600 15px/1 system-ui, sans-serif;
+  white-space: nowrap;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .45);
+  cursor: pointer;
+}
+#ar-button:active { transform: translateX(-50%) scale(.97); }
+
+#ar-prompt {
+  position: absolute;
+  left: 50%;
+  bottom: 92px;
+  transform: translateX(-50%);
+  max-width: 80vw;
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, .72);
+  text-align: center;
+  font-size: 13px;
+}
+
+/* ============================== Catalogo ============================== */
+.catalogo {
+  display: flex;
+  flex-direction: column;
+  background: var(--painel);
+  border-top: 1px solid var(--borda);
+}
+
+@media (min-width: 860px) {
+  .catalogo { border-top: none; border-right: 1px solid var(--borda); }
+}
+
+.catalogo-cabecalho {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 14px 6px;
+}
+.catalogo-cabecalho h1 {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.catalogo-cabecalho small { font-size: 11px; color: var(--muted); }
+
+.lista {
+  display: flex;
+  min-width: 0;
+  gap: 10px;
+  padding: 4px 14px calc(14px + env(safe-area-inset-bottom));
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (min-width: 860px) {
+  .lista {
+    flex-direction: column;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scroll-snap-type: none;
+    padding-bottom: 14px;
+  }
+}
+
+.card {
+  flex: 0 0 auto;
+  width: 108px;
+  padding: 8px;
+  border: 1px solid var(--borda);
+  border-radius: 10px;
+  background: #1d232b;
+  color: var(--fg);
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+  scroll-snap-align: start;
+}
+
+@media (min-width: 860px) {
+  .card {
+    width: auto;
+    display: grid;
+    grid-template-columns: 56px 1fr;
+    gap: 10px;
+    align-items: center;
+    text-align: left;
+  }
+}
+
+.card:hover { border-color: #3a4552; }
+.card[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: #1b2740;
+}
+
+.card .thumb {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 6px;
+  background: #11161c;
+  object-fit: contain;
+  overflow: hidden;
+}
+@media (min-width: 860px) { .card .thumb { width: 56px; } }
+
+/* model-viewer usado como preview: sem interacao, so a imagem */
+.card model-viewer.thumb {
+  --poster-color: transparent;
+  pointer-events: none;
+}
+
+.card .sem-thumb {
+  display: grid;
+  place-items: center;
+  font: 600 22px/1 system-ui, sans-serif;
+  color: var(--muted);
+}
+
+.card .nome {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+@media (min-width: 860px) { .card .nome { margin-top: 0; font-size: 13px; } }
+
+.card .medida {
+  display: block;
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.card .selo {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: #2a3340;
+  font-size: 9px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.vazio {
+  padding: 14px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.vazio code {
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: #11161c;
+  font-size: 11px;
+}
+
+/* ============================== Diagnostico ============================== */
+#diag {
+  position: fixed;
+  top: calc(10px + env(safe-area-inset-top));
+  right: 10px;
+  left: auto;
+  width: min(340px, calc(100vw - 20px));
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 10px;
+  background: rgba(16, 20, 24, .9);
+  backdrop-filter: blur(6px);
+  font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+  z-index: 10;
+}
+#diag summary {
+  cursor: pointer;
+  list-style: none;
+  font-weight: 600;
+  font-family: system-ui, sans-serif;
+  color: var(--muted);
+}
+#diag summary::-webkit-details-marker { display: none; }
+#diag summary::before { content: "\25B8  "; }
+#diag[open] summary::before { content: "\25BE  "; }
+#diag dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 10px;
+  margin: 10px 0 0;
+}
+#diag dt { color: var(--muted); }
+#diag dd { margin: 0; overflow-wrap: anywhere; }
+
+.ok   { color: var(--ok); }
+.warn { color: var(--warn); }
+.err  { color: var(--err); }
