@@ -1,0 +1,20 @@
+{
+  "_leia": "Cada item vira um card no seletor. Veja assets/README.md para as regras. Apague os itens com \"exemplo\": true quando tiver seus proprios modelos.",
+
+  "itens": [
+    {
+      "id": "astronauta",
+      "nome": "Astronauta",
+      "origem": "cdn",
+      "alturaM": null,
+      "glb": "https://modelviewer.dev/shared-assets/models/Astronaut.glb",
+      "usdz": "https://modelviewer.dev/shared-assets/models/Astronaut.usdz"
+    },
+    {
+      "id": "gangorra_em_pe",
+      "nome": "Gangorra em pé",
+      "origem": "local",
+      "usdz": true
+    }
+  ]
+}
